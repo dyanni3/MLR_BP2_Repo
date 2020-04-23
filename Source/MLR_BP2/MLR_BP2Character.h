@@ -20,21 +20,6 @@ struct FStateStruct
 		FString Name;
 };
 
-USTRUCT(BlueprintType)
-struct FActionStruct
-{
-	GENERATED_USTRUCT_BODY()
-
-	FActionStruct() {};
-
-	UPROPERTY()
-	TArray<float> ActionValues;
-
-	UPROPERTY()
-	FString Name;
-
-};
-
 UCLASS(config=Game)
 class AMLR_BP2Character : public ACharacter
 {
@@ -69,20 +54,11 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	FStateStruct CurrentState;
 
-	UPROPERTY(VisibleAnywhere)
-	FActionStruct CurrentAction;
-
 	UFUNCTION(BlueprintCallable)
 	void PrintStateStructName();
 
 	UFUNCTION(BlueprintCallable)
 	FStateStruct GetStateStruct();
-
-	UFUNCTION(BlueprintCallable)
-	void SetCurrentAction(FString JsonString);
-
-	UFUNCTION(BlueprintCallable)
-	void PrintActionStructAction();
 
 protected:
 

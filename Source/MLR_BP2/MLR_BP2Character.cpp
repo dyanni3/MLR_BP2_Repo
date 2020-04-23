@@ -49,9 +49,6 @@ AMLR_BP2Character::AMLR_BP2Character()
 
 	CurrentState.Name = TEXT("Current State");
 	CurrentState.StateValues.Push(0.0);
-	CurrentAction.Name = TEXT("Current Action");
-	CurrentAction.ActionValues.Push(9.9);
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, FString::SanitizeFloat(CurrentAction.ActionValues[0]));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -176,19 +173,4 @@ FStateStruct AMLR_BP2Character::GetStateStruct() {
 UFUNCTION(BlueprintCallable)
 void AMLR_BP2Character::PrintStateStructName() {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, CurrentState.Name);
-}
-
-UFUNCTION(BlueprintCallable)
-void AMLR_BP2Character::PrintActionStructAction() {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::SanitizeFloat(CurrentAction.ActionValues[0]));
-}
-
-UFUNCTION(BlueprintCallable)
-void AMLR_BP2Character::SetCurrentAction(FString JsonString) {
-	FActionStruct ThisCurrentAction;
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, JsonString);
-	if (!FJsonObjectConverter::JsonObjectStringToUStruct(JsonString, &ThisCurrentAction, 0, 0)) {
-		UE_LOG(LogTemp, Warning, TEXT("whoopsie!"));
-	}
-	CurrentAction = ThisCurrentAction;
 }
