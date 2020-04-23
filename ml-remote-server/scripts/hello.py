@@ -24,7 +24,7 @@ class myAPI(MLPluginAPI):
 		print(f"Current State: {x_loc}")
 		tt = torch.tensor(-np.array(x_loc))
 		#ret_val = torch.exp(tt)
-		ret_val = {"Name":"Current Action", "ActionValues":tt.tolist()[0]}
+		ret_val = {"Name":"Current Action", "ActionValues":[tt.tolist()[0]]}
 		ret_val = json.dumps(ret_val)
 		print(ret_val)
 		return (ret_val)

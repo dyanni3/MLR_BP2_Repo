@@ -49,6 +49,9 @@ AMLR_BP2Character::AMLR_BP2Character()
 
 	CurrentState.Name = TEXT("Current State");
 	CurrentState.StateValues.Push(0.0);
+
+	CurrentAction.Name = TEXT("Current Action");
+	CurrentAction.ActionValues.Push(0.0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -173,4 +176,16 @@ FStateStruct AMLR_BP2Character::GetStateStruct() {
 UFUNCTION(BlueprintCallable)
 void AMLR_BP2Character::PrintStateStructName() {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, CurrentState.Name);
+}
+
+UFUNCTION(BlueprintCallable)
+void AMLR_BP2Character::JsonStringToActionStruct(FString JsonString) {
+	FJsonObjectConverter converter;
+	bool worked = converter.JsonObjectStringToUStruct(JsonString, &CurrentAction, 0, 0);
+	if (!worked) {
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("didn't work!!"));
+		return;
+	}
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("worked!"));
+	return;
 }
