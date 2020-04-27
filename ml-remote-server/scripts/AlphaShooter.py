@@ -154,6 +154,7 @@ class Agent(object):
 
         self.loss_fn = torch.nn.MSELoss()
         self.optim = torch.optim.Adam(self.dqn.parameters())
+        self.old_state
 
     def _to_variable(self, x: np.ndarray) -> torch.Tensor:
         """torch.Variable syntax helper
@@ -233,48 +234,27 @@ def train_helper(agent: Agent, minibatch: List[Transition], gamma: float) -> flo
     return agent.train(Q_predict, Q_target)
 
 
-def play_episode(env: gym.Env,
-                 agent: Agent,
+def play_step(   agent: Agent,
                  replay_memory: ReplayMemory,
                  eps: float,
                  batch_size: int,
-                 step: tuple) -> int:
-    """Play an epsiode and train
-    Args:
-        env (gym.Env): gym environment (CartPole-v0)
-        agent (Agent): agent will train and get action
-        replay_memory (ReplayMemory): trajectory is saved here
-        eps (float): 𝜺-greedy for exploration
-        batch_size (int): batch size
-    Returns:
-        int: reward earned in this episode
-    """
-    #s = env.reset()
-    s = GET_MOST_RECENT_STATE
-    done = False
-    total_reward = 0
+                 step: tuple,
+                 this_episode_reward: float) -> int:
 
-    while not done:
-
+    s = agent.old_state
+    if done:
+    	r = -1
+    if not done:
         a = agent.get_action(s, eps)
         #s2, r, done, info = env.step(a)
-        S2, R, Done = GET_STATE_FROM_UE4
-
-
+        s2, r, done, info = step
         total_reward += r
-
-        if done:
-            r = -1
-        replay_memory.push(s, a, r, s2, done)
-
-        if len(replay_memory) > batch_size:
-
-            minibatch = replay_memory.pop(batch_size)
-            train_helper(agent, minibatch, FLAGS.gamma)
-
-        s = s2
-
-    return total_reward
+    replay_memory.push(s, a, r, s2, done)
+    if len(replay_memory) > batch_size:
+        minibatch = replay_memory.pop(batch_size)
+        train_helper(agent, minibatch, FLAGS.gamma)
+    agent.old_state = s2
+    return this_episode_reward
 
 def get_state_from_ue4(json_input):
 	state = json_input['state']
@@ -326,18 +306,21 @@ class AlphaShooterAPI(MLPluginAPI):
 		ue.log('AlphaShooter setup running...')
 		agent = Agent(input_dim, output_dim, FLAGS.hidden_dim)
         replay_memory = ReplayMemory(FLAGS.capacity)
+        total_reward = 0
 		
 		
 	#optional api: parse input object and return a result object, which will be converted to json for UE4
 	def on_json_input(self, input_):
-		print('hello on_json_input')
+		print('state input received')
 		print(f"python side: {input_}")
+		play_episode()
 		x_loc = input_['stateValues']
 		print(f"Current State: {x_loc}")
-		tt = torch.tensor(-np.array(x_loc))
-		#ret_val = torch.exp(tt)
-		ret_val = {"Name":"Current Action", "ActionValues":[tt.tolist()[0]]}
-		ret_val = json.dumps(ret_val)
+		old_state = agent.old_state
+		play_step()
+
+		#ret_val = {"Name":"Current Action", "ActionValues":[tt.tolist()[0]]}
+		#ret_val = json.dumps(ret_val)
 		print(ret_val)
 		return (ret_val)
 		#return({"ret ret ret ret": "floof floof"})
