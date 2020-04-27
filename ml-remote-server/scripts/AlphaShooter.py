@@ -1,52 +1,37 @@
+"""
+To Do:
+1) on ue4 side output done in addition to state (and info)
+2) be able to programmatically start and stop game
+3) save rewards and progress to files for plotting and future use
+"""
+
 print('AlphaShooter imports running')
 
-from mlpluginapi import MLPluginAPI
-import unreal_engine as ue
+
 import json
 import torch
-import numpy as np
-import argparse
-import torch.nn
 import random
-from collections import namedtuple
+import torch.nn
+import numpy as np
+import unreal_engine as ue
 from collections import deque
 from typing import List, Tuple
+from collections import namedtuple
+from mlpluginapi import MLPluginAPI
 
-
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--gamma",
-                    type=float,
-                    default=0.99,
-                    help="Discount rate for Q_target")
-parser.add_argument("--n-episode",
-                    type=int,
-                    default=1000,
-                    help="Number of epsidoes to run")
-parser.add_argument("--batch-size",
-                    type=int,
-                    default=64,
-                    help="Mini-batch size")
-parser.add_argument("--hidden-dim",
-                    type=int,
-                    default=12,
-                    help="Hidden dimension")
-parser.add_argument("--capacity",
-                    type=int,
-                    default=50000,
-                    help="Replay memory capacity")
-parser.add_argument("--max-episode",
-                    type=int,
-                    default=50,
-                    help="e-Greedy target episode (eps will be the lowest at this episode)")
-parser.add_argument("--min-eps",
-                    type=float,
-                    default=0.01,
-                    help="Min epsilon")
-FLAGS = parser.parse_args()
 
 #global variables
 THIS_EPISODE_REWARD = 0
 EPISODE_NUMBER = 0
+STATE_DIMENSION = 6
+ACTION_DIMENSION = 6
+GAMMA = 0.99
+N_EPISODES = 100
+BATCH_SIZE = 64
+HIDDEN_DIM = 12
+CAPACITY = 50000
+MAX_EPISODE = 50
+MIN_EPS = 0.01
 
 class DQN(torch.nn.Module):
     def __init__(self, input_dim: int, output_dim: int, hidden_dim: int) -> None:
@@ -174,7 +159,7 @@ def play_step(   agent: Agent,
     replay_memory.push(s, a, r, s2, done)
     if len(replay_memory) > batch_size:
         minibatch = replay_memory.pop(batch_size)
-        train_helper(agent, minibatch, FLAGS.gamma)
+        train_helper(agent, minibatch, GAMMA)
     agent.old_state = s2
     return (this_episode_reward, a)
 
@@ -196,9 +181,9 @@ class AlphaShooterAPI(MLPluginAPI):
 	def on_setup(self):
 		print('AlphaShooter setup running...')
 		ue.log('AlphaShooter setup running...')
-		agent = Agent(input_dim, output_dim, FLAGS.hidden_dim)
+		agent = Agent(STATE_DIMENSION, ACTION_DIMENSION, HIDDEN_DIM)
 		agent.old_state = 0
-        replay_memory = ReplayMemory(FLAGS.capacity)
+        replay_memory = ReplayMemory(CAPACITY)
         THIS_EPISODE_REWARD = 0
 		
 		
@@ -206,12 +191,12 @@ class AlphaShooterAPI(MLPluginAPI):
 	def on_json_input(self, input_):
 		print('state input received')
 		print(f"python side: {input_}")
-		old_state = agent.old_state
+		ue.log(input_)
 		step = get_state_from_ue4(input_)
 		THIS_EPISODE_REWARD, action = play_step(agent,
 			replay_memory,
-			eps,
-			batch_size,
+			epsilon_annealing(EPISODE_NUMBER, MAX_EPISODE, MIN_EPS),
+			BATCH_SIZE,
 			step,
 			THIS_EPISODE_REWARD)
 		if input_['done'] == True:
