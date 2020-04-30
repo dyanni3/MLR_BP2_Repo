@@ -1,8 +1,11 @@
 """
 To Do:
+0) run this script and debug it
 1) on ue4 side output done in addition to state (and info)
 2) be able to programmatically start and stop game
 3) save rewards and progress to files for plotting and future use
+4) add A3C
+5) add SAC
 """
 
 print('AlphaShooter imports running')
@@ -19,19 +22,25 @@ from typing import List, Tuple
 from collections import namedtuple
 from mlpluginapi import MLPluginAPI
 
+print("Imports success")
+
 
 #global variables
-THIS_EPISODE_REWARD = 0
-EPISODE_NUMBER = 0
-STATE_DIMENSION = 6
-ACTION_DIMENSION = 6
-GAMMA = 0.99
-N_EPISODES = 100
-BATCH_SIZE = 64
-HIDDEN_DIM = 12
-CAPACITY = 50000
-MAX_EPISODE = 50
-MIN_EPS = 0.01
+class RL_Config():
+	def __init__(self):
+		self.THIS_EPISODE_REWARD = 0
+		self.EPISODE_NUMBER = 0
+		self.STATE_DIMENSION = 6
+		self.ACTION_DIMENSION = 6
+		self.GAMMA = 0.99
+		self.N_EPISODES = 100
+		self.BATCH_SIZE = 64
+		self.HIDDEN_DIM = 12
+		self.CAPACITY = 50000
+		self.MAX_EPISODE = 50
+		self.MIN_EPS = 0.01
+		self.THIS_EPISODE_REWARD = 0
+
 
 class DQN(torch.nn.Module):
     def __init__(self, input_dim: int, output_dim: int, hidden_dim: int) -> None:
@@ -98,7 +107,8 @@ class Agent(object):
 
         self.loss_fn = torch.nn.MSELoss()
         self.optim = torch.optim.Adam(self.dqn.parameters())
-        self.old_state
+        self.old_state = 0
+        self.done = False
 
     def _to_variable(self, x: np.ndarray) -> torch.Tensor:
         return torch.autograd.Variable(torch.Tensor(x))
@@ -142,26 +152,27 @@ def train_helper(agent: Agent, minibatch: List[Transition], gamma: float) -> flo
     return agent.train(Q_predict, Q_target)
 
 
-def play_step(   agent: Agent,
-                 replay_memory: ReplayMemory,
-                 eps: float,
-                 batch_size: int,
-                 step: tuple,
-                 this_episode_reward: float) -> int:
-
-    s = agent.old_state
-    if done:
-    	r = -1
-    if not done:
-        a = agent.get_action(s, eps)
-        s2, r, done, info = step
-        total_reward += r
-    replay_memory.push(s, a, r, s2, done)
-    if len(replay_memory) > batch_size:
-        minibatch = replay_memory.pop(batch_size)
-        train_helper(agent, minibatch, GAMMA)
-    agent.old_state = s2
-    return (this_episode_reward, a)
+def play_step(done: bool,
+	agent: Agent,
+	replay_memory: ReplayMemory,
+	eps: float,
+	batch_size: int,
+	step: tuple) -> int:
+	
+	s = agent.old_state
+	if done:
+		r = -1
+	if not done:
+		a = agent.get_action(s, eps)
+		s2, r, done, info = step
+		g.THIS_EPISODE_REWARD += r
+		agent.done = done
+	replay_memory.push(s, a, r, s2, done)
+	if len(replay_memory) > batch_size:
+		minibatch = replay_memory.pop(batch_size)
+		train_helper(agent, minibatch, g.GAMMA)
+	agent.old_state = s2
+	return (a)
 
 def get_state_from_ue4(json_input):
 	state = json_input['state']
@@ -170,9 +181,13 @@ def get_state_from_ue4(json_input):
 	info = json_input['info']
 	return(state, reward, done, info)
 
-def epsilon_annealing(epsiode: int, max_episode: int, min_eps: float) -> float:
-    slope = (min_eps - 1.0) / max_episode
-    return max(slope * epsiode + 1.0, min_eps)
+def epsilon_annealing():
+    slope = (g.MIN_EPS - 1.0) / g.MAX_EPISODE
+    return max(slope * g.EPISODE_NUMBER + 1.0, g.MIN_EPS)
+
+g = RL_Config()
+agent = Agent(g.STATE_DIMENSION, g.ACTION_DIMENSION, g.HIDDEN_DIM)
+replay_memory = ReplayMemory(g.CAPACITY)
 
 #MLPluginAPI
 class AlphaShooterAPI(MLPluginAPI):
@@ -181,10 +196,8 @@ class AlphaShooterAPI(MLPluginAPI):
 	def on_setup(self):
 		print('AlphaShooter setup running...')
 		ue.log('AlphaShooter setup running...')
-		agent = Agent(STATE_DIMENSION, ACTION_DIMENSION, HIDDEN_DIM)
+		agent.done = False
 		agent.old_state = 0
-        replay_memory = ReplayMemory(CAPACITY)
-        THIS_EPISODE_REWARD = 0
 		
 		
 	#optional api: parse input object and return a result object, which will be converted to json for UE4
@@ -193,16 +206,17 @@ class AlphaShooterAPI(MLPluginAPI):
 		print(f"python side: {input_}")
 		ue.log(input_)
 		step = get_state_from_ue4(input_)
-		THIS_EPISODE_REWARD, action = play_step(agent,
+		epsilon = epsilon_annealing()
+		action = play_step(agent.done,
+			agent,
 			replay_memory,
-			epsilon_annealing(EPISODE_NUMBER, MAX_EPISODE, MIN_EPS),
-			BATCH_SIZE,
-			step,
-			THIS_EPISODE_REWARD)
+			epsilon,
+			g.BATCH_SIZE,
+			step)
 		if input_['done'] == True:
-			print("[Episode: {:5}] Reward: {:5} 𝜺-greedy: {:5.2f}".format(EPISODE_NUMBER + 1, THIS_EPISODE_REWARD, eps))
-			EPISODE_NUMBER += 1
-			THIS_EPISODE_REWARD = 0
+			print("[Episode: {:5}] Reward: {:5} 𝜺-greedy: {:5.2f}".format(g.EPISODE_NUMBER + 1, THIS_EPISODE_REWARD, eps))
+			g.EPISODE_NUMBER += 1
+			g.THIS_EPISODE_REWARD = 0
 			#Restart the game anew!
 			#need to figure out how to do this from python
 
