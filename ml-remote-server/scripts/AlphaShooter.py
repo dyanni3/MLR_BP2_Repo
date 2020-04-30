@@ -1,11 +1,12 @@
 """
 To Do:
-0) run this script and debug it
-1) on ue4 side output done in addition to state (and info)
-2) be able to programmatically start and stop game
+2) David - on the ue4 side fix 'done' to be on a timer
+        and also on death done=true
+        and then extract it from the json and deliver it
+        to Nik as a python variable
 3) save rewards and progress to files for plotting and future use
-4) add A3C
-5) add SAC
+4) Nik - add A3C
+5) David - add SAC
 """
 
 print('AlphaShooter imports running')
