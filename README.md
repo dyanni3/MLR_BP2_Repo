@@ -1,6 +1,8 @@
 # MLR_BP2_Repo
 getting communication between ue4 and external python script working
 
+based on https://github.com/getnamo/ml-remote-server
+
 ## How to use
 
 1) open ue4.24 make a new third person shooter game c++, name it MLR_BP2. Close the game and VS
